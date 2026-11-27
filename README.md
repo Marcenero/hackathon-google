@@ -1,6 +1,6 @@
-# ArboAlerta SP
+# Raiz Viva
 
-Mapa de triagem de ocorrências arbóreas em São Paulo. O frontend usa React, TypeScript, Tailwind CSS e Leaflet. O backend FastAPI envia quatro ângulos da árvore ao Gemini pela SDK oficial `google-genai`.
+Mapa de inventário arbóreo e triagem de ocorrências em São Paulo. O frontend usa React, TypeScript, Tailwind CSS e Leaflet. O backend FastAPI envia quatro ângulos da árvore ao Gemini pela SDK oficial `google-genai`.
 
 ## Executar localmente
 
@@ -29,13 +29,23 @@ npm run dev
 
 Abra [o mapa](http://localhost:5173) ou [a documentação interativa da API](http://localhost:8000/docs). Para compilar a versão de produção e checar TypeScript, rode `npm run build` no frontend.
 
-## Testar o fluxo
+## Mapa do inventário
 
-1. Aceite a geolocalização ou use a referência da Av. Paulista.
-2. Abra **Reportar Árvore**. Capture os quatro ângulos ou use **Simular captura**. Use **Simular Foto Ruim** para repetir o ângulo atual e conservar as outras fotos.
-3. Escolha **Analisar árvore**, revise a triagem e clique em **Publicar Alerta no Mapa**.
-4. Abra a ocorrência a partir do pino, confirme o relato e copie o resumo para o 156 SP.
+O mapa abre no Butantã com os 1.624 registros georreferenciados do inventário atribuído ao IPT no CopaSegura, inclusive os de outras regiões. Consulte a origem e a estrutura dos dados em [Inventário atribuído ao IPT](frontend/src/data/inventory-provenance.md).
 
-Quatro fotos reais acionam `POST /api/analisar-arvore`. Uma chave ausente, um serviço indisponível ou qualquer captura simulada ativa o modo demonstração, identificado na interface. O modelo padrão é `gemini-2.5-flash`, selecionável em `GEMINI_MODEL`. O Google informa que o acesso ao 2.5 Flash está limitado a usuários que já o utilizaram e que o identificador será redirecionado a partir de 1º de dezembro de 2026. [Cronograma do Gemini](https://ai.google.dev/gemini-api/docs/deprecations#gemini-2.5-flash-models)
+- Busque pelo nome popular, nome científico ou identificador. O filtro **Só risco alto e crítico** mantém o índice histórico a partir de 55.
+- Alterne entre **Risco histórico**, **Saúde** e **Rede elétrica**. A busca e o filtro se aplicam aos pontos e às duas manchas do inventário.
+- Use **Árvores**, **Mancha de risco**, **Áreas arborizadas** e **Alertas cidadãos** de forma independente. A mancha histórica de risco considera registros com índice a partir de 70. A mancha verde pondera saúde e porte. As camadas do inventário usam dados históricos.
+- Abra uma ficha por um ponto ou pela lista para consultar a origem, a data e os indicadores da inspeção.
 
-Os relatos iniciais e os valores do aviso climático são exemplos. O mapa-base é carregado do OpenStreetMap. Os relatos publicados e as confirmações ficam na sessão da página. O raio decorre da categoria de risco e serve apenas como estimativa visual. A triagem orienta a solicitação de vistoria presencial.
+O mapa-base usa [OpenStreetMap](https://www.openstreetmap.org/copyright).
+
+## Testar a publicação
+
+1. Abra **Reportar Árvore** e permita o acesso à localização. Use quatro fotos reais.
+2. Escolha **Analisar árvore**, revise a triagem e clique em **Publicar Alerta no Mapa**. Se houver pedido de recaptura, substitua o ângulo indicado.
+3. Abra o marcador circular do relato ou selecione-o na lista. Confira o diagnóstico e as evidências. O controle **Alertas cidadãos** alterna essa camada.
+
+A integração usa `POST /api/analisar-arvore` e o modelo selecionado em `GEMINI_MODEL`. A demonstração da captura anterior continua disponível para pré-visualização. Só uma triagem real com localização obtida pelo GPS pode publicar um marcador.
+
+Os relatos e as confirmações da versão atual ficam na sessão do navegador. Contas, persistência, pontuação, ranking e verificação municipal por um gestor ainda não existem nesta branch.

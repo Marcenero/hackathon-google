@@ -26,7 +26,13 @@ export interface TreeOccurrence {
   validations: number
   validatedByMe: boolean
   photos: TreePhotoEvidence[]
-  source: 'exemplo' | 'simulado' | 'gemini'
+  source: 'simulado' | 'gemini'
+  kind?: 'observation' | 'alert'
+  isNewTree?: boolean
+  inventoryTreeKey?: string
+  communityValidated?: boolean
+  municipalVerification?: 'pending' | 'approved' | 'rejected'
+  resolved?: boolean
 }
 
 export interface GeminiAnalysisResponse {

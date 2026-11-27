@@ -1,5 +1,5 @@
 import { useEffect, useRef, type ReactNode } from 'react'
-import { Check, Clipboard, Clock3, Image, Leaf, MapPin, ScanLine, X } from 'lucide-react'
+import { BadgeCheck, Check, Clipboard, Clock3, Image, Leaf, MapPin, ScanLine, X } from 'lucide-react'
 import { RISK } from './data/mockTrees'
 import type { TreeOccurrence } from './types/tree'
 
@@ -99,6 +99,8 @@ export function ReportDetails({
       <header className="dialog-header">
         <div>
           <span className="source-label">{report.source === 'gemini' ? 'Triagem Gemini' : 'Demonstração'}</span>
+          {report.municipalVerification === 'approved' && <span className="report-verified"><BadgeCheck size={15} /> Verificado pela Prefeitura</span>}
+          {report.communityValidated && <span className="report-verified"><Check size={15} /> Validado pela comunidade</span>}
           <h2>{report.title}</h2>
           <p><MapPin size={15} /> {report.address}</p>
         </div>

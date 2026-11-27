@@ -44,8 +44,8 @@ function toReport(result: GeminiAnalysisResponse, slots: (CapturedSlotItem | nul
 }
 
 export default function CaptureDialog({
-  location, locationPending, onClose, onPublish,
-}: { location: Coordinates | null; locationPending: boolean; onClose: () => void; onPublish: (report: TreeOccurrence) => void }) {
+  location, locationPending, locationMessage, onLocate, onClose, onPublish,
+}: { location: Coordinates | null; locationPending: boolean; locationMessage: string; onLocate: () => void; onClose: () => void; onPublish: (report: TreeOccurrence) => void }) {
   const [slots, setSlots] = useState<(CapturedSlotItem | null)[]>([null, null, null, null])
   const [step, setStep] = useState(0)
   const [busy, setBusy] = useState(false)
@@ -113,11 +113,15 @@ export default function CaptureDialog({
       return
     }
 
+    if (!location) {
+      setNotice('Permita o acesso ao GPS para analisar e publicar no ponto capturado.')
+      return
+    }
     setBusy(true)
     setNotice('')
     const controller = new AbortController()
     request.current = controller
-    const coords = location || PAULISTA
+    const coords = location
     const body = new FormData()
     for (const item of slots) if (item?.file) body.append('fotos', item.file)
     body.append('lat', String(coords.lat))
@@ -168,7 +172,7 @@ export default function CaptureDialog({
   }
 
   function publish() {
-    if (!report) return
+    if (!report || report.source !== 'gemini') return
     for (const photo of report.photos) if (photo.previewUrl) urls.current.delete(photo.previewUrl)
     onPublish(report)
   }
@@ -178,15 +182,20 @@ export default function CaptureDialog({
       <header className="dialog-header">
         <div>
           <h2>{report ? 'Revisar diagnóstico' : 'Reportar Árvore'}</h2>
-          <p><MapPin size={15} /> {locationPending ? 'Buscando localização…' : location ? 'Localização GPS capturada' : 'Av. Paulista · localização de referência'}</p>
+          <p><MapPin size={15} /> {locationPending ? 'Buscando localização…' : location ? 'Localização GPS capturada' : 'Localização GPS necessária para publicar'}</p>
         </div>
         <button type="button" className="icon-button" aria-label="Fechar captura" disabled={busy} onClick={onClose}><X size={22} /></button>
       </header>
       <div className="dialog-body">
+        {!location && !locationPending && <div className="capture-note">
+          {locationMessage && <p role="status">{locationMessage}</p>}
+          <button type="button" className="text-button" onClick={onLocate}>Tentar obter a localização</button>
+        </div>}
         {notice && <div role="alert" className="capture-notice"><CircleAlert size={18} /><div><strong>{recapture !== null ? 'Refaça esta foto' : report ? 'Modo demonstração' : 'Atenção'}</strong><p>{notice}</p></div></div>}
         {report ? (
           <>
             {report.source === 'simulado' && !notice && <p className="capture-note">Avaliação simulada para demonstração.</p>}
+            {report.source === 'simulado' && <p className="capture-note">Só triagens reais podem ser publicadas no mapa.</p>}
             <Diagnosis report={report} />
             <EvidenceGallery report={report} />
           </>
@@ -226,7 +235,7 @@ export default function CaptureDialog({
         {report ? (
           <>
             <button type="button" className="button-secondary" onClick={() => { setReport(null); setNotice('') }}><ArrowLeft size={17} /> Fotos</button>
-            <button type="button" className="button-primary" onClick={publish}><MapPin size={18} /> Publicar Alerta no Mapa</button>
+            <button type="button" className="button-primary" disabled={report.source !== 'gemini'} onClick={publish}><MapPin size={18} /> Publicar Alerta no Mapa</button>
           </>
         ) : (
           <>
