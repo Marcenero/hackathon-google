@@ -8,33 +8,6 @@ export interface TreePhotoEvidence {
   previewUrl?: string | null
 }
 
-export interface TreeOccurrence {
-  id: string
-  title: string
-  address: string
-  lat: number
-  lng: number
-  risk: RiskLevel
-  score: number
-  urgency: string
-  deadline: string
-  species: string
-  speciesConfidence: SpeciesConfidence
-  speciesNote: string
-  summary: string
-  tags: string[]
-  validations: number
-  validatedByMe: boolean
-  photos: TreePhotoEvidence[]
-  source: 'simulado' | 'gemini'
-  kind?: 'observation' | 'alert'
-  isNewTree?: boolean
-  inventoryTreeKey?: string
-  communityValidated?: boolean
-  municipalVerification?: 'pending' | 'approved' | 'rejected'
-  resolved?: boolean
-}
-
 export interface GeminiAnalysisResponse {
   status_processamento: 'aprovado' | 'refazer_foto'
   indice_foto_reprovada?: number | null
@@ -50,11 +23,12 @@ export interface GeminiAnalysisResponse {
   resumo_painel_usuario: string
 }
 
+export type PhotoOrigin = 'camera' | 'gallery'
+
 export interface CapturedSlotItem {
-  simulated: boolean
-  name: string
-  file?: File
-  previewUrl?: string | null
+  file: File
+  previewUrl: string
+  origin: PhotoOrigin
 }
 
 export type Coordinates = { lat: number; lng: number }

@@ -1,61 +1,37 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import L from 'leaflet'
 import { LocateFixed, Minus, Plus, TreePine } from 'lucide-react'
-import { BUTANTA_BOUNDS, CITIZEN_BLUE, GREEN_GRADIENT, RISK_GRADIENT, heatCoordinates, heatWeight, greenWeight, inventoryKey, reportIsAlert, riskLevel, treeName, treeStyle } from './data/inventory'
+import { BUTANTA_BOUNDS, GREEN_GRADIENT, RISK_GRADIENT, heatCoordinates, heatWeight, greenWeight, inventoryKey, riskLevel, treeName, treeStyle } from './data/inventory'
 import type { InventoryTree, LayerVisibility, MapMode } from './data/inventory'
 import { createHeatLayer } from './leafletHeat'
 import { MapLegend } from './MapPanel'
-import type { Coordinates, TreeOccurrence } from './types/tree'
+import type { Coordinates } from './types/tree'
 
 interface Props {
   inventory: InventoryTree[]
   trees: InventoryTree[]
-  reports: TreeOccurrence[]
-  assessments: ReadonlyMap<string, TreeOccurrence>
   layers: LayerVisibility
   mode: MapMode
   selectedTree: InventoryTree | null
-  selectedReport: TreeOccurrence | undefined
   focusTree: boolean
   location: Coordinates | null
   onTree: (tree: InventoryTree, focus: boolean) => void
-  onReport: (id: string) => void
   onLocate: () => void
 }
 
 const riskOptions = { radius: 22, blur: 20, maxZoom: 18, minOpacity: 0, max: 1.8, gradient: RISK_GRADIENT }
 const greenOptions = { radius: 34, blur: 30, maxZoom: 18, minOpacity: 0, max: 2.2, gradient: GREEN_GRADIENT }
 const reduction = () => matchMedia('(prefers-reduced-motion: reduce)').matches
-const assessmentRing = '#256b4d'
+const selectionRing = '#256b4d'
 
 function markerOptions(style: { radius: number; color: string; opacity: number }): L.CircleMarkerOptions {
   return { radius: style.radius, color: '#fff', weight: style.radius >= 5 ? 1.2 : 0.7, fillColor: style.color, fillOpacity: style.opacity }
 }
 
-function reportIcon(report: TreeOccurrence) {
-  const severity = riskLevel(report.score)
-  const community = Boolean(report.communityValidated)
-  const municipal = report.municipalVerification === 'approved'
-  const alert = reportIsAlert(report)
-  const pin = alert ? '<span class="citizen-marker-symbol">!</span>' : report.isNewTree ? '<span class="citizen-marker-symbol">+</span>' : ''
-  const check = municipal ? '<span class="citizen-marker-check" aria-hidden="true">✓</span>' : ''
-  const icon = L.divIcon({
-    className: 'citizen-marker',
-    html: `<span class="citizen-dot ${alert ? 'citizen-alert' : ''} ${community ? 'citizen-community' : ''}" style="--citizen-fill:${severity.color};--dot-size:${severity.radius * 2 + 5}px">${pin}${check}</span>`,
-    iconSize: [24, 24], iconAnchor: [12, 12],
-  })
-  const label = [
-    report.title, alert ? 'Alerta cidadão' : report.isNewTree ? 'Árvore cadastrada por cidadão' : 'Observação cidadã',
-    community && 'Validado pela comunidade', municipal && 'Verificado pela Prefeitura',
-  ].filter(Boolean).join(' · ')
-  return { icon, label }
-}
-
-export default function TreeMap({ inventory, trees, reports, assessments, layers, mode, selectedTree, selectedReport, focusTree, location, onTree, onReport, onLocate }: Props) {
+export default function TreeMap({ inventory, trees, layers, mode, selectedTree, focusTree, location, onTree, onLocate }: Props) {
   const element = useRef<HTMLDivElement>(null)
   const map = useRef<L.Map>(null)
   const treeLayer = useRef<L.LayerGroup>(null)
-  const reportLayer = useRef<L.LayerGroup>(null)
   const selection = useRef<L.LayerGroup>(null)
   const treeRenderer = useRef<L.Canvas>(null)
   const tileLayer = useRef<L.TileLayer>(null)
@@ -93,7 +69,6 @@ export default function TreeMap({ inventory, trees, reports, assessments, layers
     instance.createPane('inventoryPoints').style.zIndex = '430'
     treeRenderer.current = L.canvas({ pane: 'inventoryPoints', padding: 0.4 })
     treeLayer.current = L.layerGroup().addTo(instance)
-    reportLayer.current = L.layerGroup().addTo(instance)
     selection.current = L.layerGroup().addTo(instance)
 
     const green = createHeatLayer(instance, 'green', greenOptions)
@@ -149,9 +124,7 @@ export default function TreeMap({ inventory, trees, reports, assessments, layers
     for (const tree of trees) {
       const key = inventoryKey(tree)
       const point = markers.current.get(key)!
-      const assessment = mode === 'history' ? assessments.get(key) : undefined
-      const options = markerOptions(assessment ? riskLevel(assessment.score) : treeStyle(tree, mode))
-      if (assessment) Object.assign(options, { color: CITIZEN_BLUE, weight: 2.4 })
+      const options = markerOptions(treeStyle(tree, mode))
       point.setStyle(options)
       point.setRadius(options.radius!)
       shown.add(point)
@@ -160,19 +133,7 @@ export default function TreeMap({ inventory, trees, reports, assessments, layers
     group.eachLayer((point) => {
       if (!shown.has(point as L.CircleMarker)) group.removeLayer(point)
     })
-  }, [trees, mode, layers.trees, assessments])
-
-  useEffect(() => {
-    const group = reportLayer.current!
-    group.clearLayers()
-    for (const report of reports) {
-      const { icon, label } = reportIcon(report)
-      const marker = L.marker(report, { icon, title: label, alt: label })
-        .on('click', () => onReport(report.id))
-        .addTo(group)
-      marker.getElement()?.setAttribute('aria-label', label)
-    }
-  }, [reports, onReport])
+  }, [trees, mode, layers.trees])
 
   useEffect(() => {
     if (!location) return
@@ -184,21 +145,12 @@ export default function TreeMap({ inventory, trees, reports, assessments, layers
     return () => { user.remove() }
   }, [location])
 
-  const selectedReportLat = selectedReport?.lat
-  const selectedReportLng = selectedReport?.lng
-  useEffect(() => {
-    const instance = map.current!
-    if (selectedReportLat !== undefined && selectedReportLng !== undefined) {
-      instance.panTo([selectedReportLat, selectedReportLng], { animate: !reduction() })
-    }
-  }, [selectedReportLat, selectedReportLng])
-
   useEffect(() => {
     const group = selection.current!
     group.clearLayers()
     if (!selectedTree) return
     const point: L.LatLngTuple = [selectedTree.lat, selectedTree.lon]
-    if (layers.trees) L.circleMarker(point, { radius: 10, color: assessmentRing, weight: 2, fill: false, interactive: false, renderer: treeRenderer.current! }).addTo(group)
+    if (layers.trees) L.circleMarker(point, { radius: 10, color: selectionRing, weight: 2, fill: false, interactive: false, renderer: treeRenderer.current! }).addTo(group)
   }, [selectedTree, layers.trees])
 
   useEffect(() => {

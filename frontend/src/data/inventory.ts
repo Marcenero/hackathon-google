@@ -1,6 +1,5 @@
 import inventoryUrl from './iptInventory.json?url'
 import type { HeatPoint } from '../leafletHeat'
-import type { TreeOccurrence } from '../types/tree'
 
 export interface InventoryTree {
   id: string
@@ -37,7 +36,6 @@ export const RISK_LEVELS = [
 
 export const RISK_GRADIENT = { 0.12: '#F3E3A0', 0.30: '#F0A33A', 0.55: '#D2572A', 0.80: '#A8283A', 1: '#6B1027' }
 export const GREEN_GRADIENT = { 0.20: '#E3EFD6', 0.45: '#B5D59C', 0.70: '#7DB46E', 1: '#3F8A52' }
-export const CITIZEN_BLUE = '#2D6E8E'
 export const POWER_GRAY = '#B9B3A5'
 
 export const MAP_MODES = {
@@ -47,8 +45,8 @@ export const MAP_MODES = {
 } as const
 
 export type MapMode = keyof typeof MAP_MODES
-export type LayerVisibility = { trees: boolean; risk: boolean; green: boolean; alerts: boolean }
-export const DEFAULT_LAYERS: LayerVisibility = { trees: true, risk: true, green: true, alerts: true }
+export type LayerVisibility = { trees: boolean; risk: boolean; green: boolean }
+export const DEFAULT_LAYERS: LayerVisibility = { trees: true, risk: true, green: true }
 
 export const DEFECT_FLAGS = ['Fungo', 'Cupim', 'Rachadura no fuste', 'Copa desequilibrada', 'Galhos secos', 'Galhos deteriorados']
 export const NETWORK_FLAGS = ['Poste', 'Rede primária', 'Transformador']
@@ -117,13 +115,4 @@ export function filterInventory(inventory: InventoryTree[], query: string, highO
     (!highOnly || tree.rk >= 55) &&
     (!term || searchText(`${tree.id} ${tree.pop} ${tree.sp}`).includes(term)),
   )
-}
-
-export function reportIsAlert(report: TreeOccurrence) {
-  return report.kind === 'alert' || (!report.kind && !report.isNewTree)
-}
-
-export function showReport(report: TreeOccurrence, layers: LayerVisibility) {
-  return report.source === 'gemini' && report.municipalVerification !== 'rejected' && !report.resolved &&
-    (reportIsAlert(report) ? layers.alerts : layers.trees)
 }

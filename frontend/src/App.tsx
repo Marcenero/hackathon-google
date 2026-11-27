@@ -1,16 +1,14 @@
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
 import { Plus, TreePine } from 'lucide-react'
 import CaptureDialog from './CaptureDialog'
-import { DEFAULT_LAYERS, filterInventory, inventoryKey, loadInventory, showReport } from './data/inventory'
+import { DEFAULT_LAYERS, filterInventory, loadInventory } from './data/inventory'
 import type { InventoryTree, LayerVisibility, MapMode } from './data/inventory'
 import InventoryDetails from './InventoryDetails'
 import { MapPanel } from './MapPanel'
-import { ReportDetails } from './ReportDetails'
 import TreeMap from './TreeMap'
-import type { Coordinates, TreeOccurrence } from './types/tree'
+import type { LocationFix } from './contributionPoints'
 
 export default function App() {
-  const [reports, setReports] = useState<TreeOccurrence[]>([])
   const [inventory, setInventory] = useState<InventoryTree[]>([])
   const [inventoryStatus, setInventoryStatus] = useState<'loading' | 'ready' | 'error'>('loading')
   const [inventoryAttempt, setInventoryAttempt] = useState(0)
@@ -18,15 +16,13 @@ export default function App() {
   const [highOnly, setHighOnly] = useState(false)
   const [mode, setMode] = useState<MapMode>('history')
   const [layers, setLayers] = useState(DEFAULT_LAYERS)
-  const [selectedId, setSelectedId] = useState<string | null>(null)
   const [selectedTree, setSelectedTree] = useState<InventoryTree | null>(null)
   const [focusTree, setFocusTree] = useState(false)
   const [capture, setCapture] = useState(false)
-  const [location, setLocation] = useState<Coordinates | null>(null)
+  const [location, setLocation] = useState<LocationFix | null>(null)
   const [locationPending, setLocationPending] = useState(false)
   const [locationMessage, setLocationMessage] = useState('')
   const requesting = useRef(false)
-  const selected = reports.find((report) => report.id === selectedId)
   const deferredQuery = useDeferredValue(query)
   const trees = useMemo(() => filterInventory(inventory, deferredQuery, highOnly), [inventory, deferredQuery, highOnly])
 
@@ -39,23 +35,7 @@ export default function App() {
     }).catch(() => { if (!controller.signal.aborted) setInventoryStatus('error') })
     return () => controller.abort()
   }, [inventoryAttempt])
-  const visibleReports = useMemo(() => reports.filter((report) => showReport(report, layers)), [reports, layers])
-  const assessments = useMemo(() => {
-    const linked = new Map<string, TreeOccurrence>()
-    for (const report of reports) {
-      if (report.inventoryTreeKey && !linked.has(report.inventoryTreeKey) && showReport(report, DEFAULT_LAYERS)) {
-        linked.set(report.inventoryTreeKey, report)
-      }
-    }
-    return linked
-  }, [reports])
-
-  const chooseReport = useCallback((id: string) => {
-    setSelectedTree(null)
-    setSelectedId(id)
-  }, [])
   const chooseTree = useCallback((tree: InventoryTree, focus: boolean) => {
-    setSelectedId(null)
     setFocusTree(focus)
     setSelectedTree(tree)
   }, [])
@@ -71,7 +51,7 @@ export default function App() {
     setLocationPending(true)
     navigator.geolocation.getCurrentPosition(
       ({ coords }) => {
-        setLocation({ lat: coords.latitude, lng: coords.longitude })
+        setLocation({ lat: coords.latitude, lng: coords.longitude, accuracy: coords.accuracy })
         requesting.current = false
         setLocationPending(false)
       },
@@ -84,19 +64,6 @@ export default function App() {
     )
   }, [])
 
-  function publish(report: TreeOccurrence) {
-    if (report.source !== 'gemini') return
-    setReports((items) => [report, ...items])
-    setCapture(false)
-    chooseReport(report.id)
-  }
-
-  function validate(id: string) {
-    setReports((items) => items.map((report) => report.id === id && !report.validatedByMe
-      ? { ...report, validatedByMe: true, validations: report.validations + 1 }
-      : report))
-  }
-
   function toggleLayer(key: keyof LayerVisibility) {
     setLayers((current) => ({ ...current, [key]: !current[key] }))
   }
@@ -105,15 +72,15 @@ export default function App() {
     <main className="app-shell inventory-shell">
       <header className="brand inventory-brand">
         <span className="brand-symbol"><TreePine size={25} strokeWidth={2.25} /></span>
-        <div><h1>ArboAlerta <span>SP</span></h1><p>Monitoramento arbóreo</p></div>
+        <div><h1>Raiz <span>Viva</span></h1><p>Protótipo experimental</p></div>
       </header>
       <MapPanel query={query} onQuery={setQuery} highOnly={highOnly} onHighOnly={setHighOnly}
         mode={mode} onMode={setMode} layers={layers} onLayer={toggleLayer} trees={trees}
         inventoryStatus={inventoryStatus} onInventoryRetry={() => { setInventoryStatus('loading'); setInventoryAttempt((n) => n + 1) }}
-        reports={visibleReports} onTree={(tree) => chooseTree(tree, true)} onReport={chooseReport} />
-      <TreeMap inventory={inventory} trees={trees} reports={visibleReports} assessments={assessments} layers={layers} mode={mode}
-        location={location} selectedTree={selectedTree} selectedReport={selected} focusTree={focusTree}
-        onTree={chooseTree} onReport={chooseReport} onLocate={locate} />
+        onTree={(tree) => chooseTree(tree, true)} />
+      <TreeMap inventory={inventory} trees={trees} layers={layers} mode={mode}
+        location={location} selectedTree={selectedTree} focusTree={focusTree}
+        onTree={chooseTree} onLocate={locate} />
 
       {!capture && locationMessage && <p className="location-message" role="status">{locationMessage}</p>}
       <button type="button" className="report-cta rounded-full border-4 border-white bg-gradient-to-br from-amber-400 via-amber-500 to-orange-500 shadow-2xl"
@@ -124,11 +91,9 @@ export default function App() {
         <span><Plus size={23} strokeWidth={2.5} /></span> Reportar Árvore
       </button>
 
-      {selectedTree && <InventoryDetails tree={selectedTree} assessment={assessments.get(inventoryKey(selectedTree))}
-        onAssessment={chooseReport} onClose={() => setSelectedTree(null)} />}
-      {selected && <ReportDetails key={selected.id} report={selected} onClose={() => setSelectedId(null)} onValidate={() => validate(selected.id)} />}
+      {selectedTree && <InventoryDetails tree={selectedTree} onClose={() => setSelectedTree(null)} />}
       {capture && <CaptureDialog location={location} locationPending={locationPending} locationMessage={locationMessage}
-        onLocate={locate} onClose={() => setCapture(false)} onPublish={publish} />}
+        inventory={inventory} onLocate={locate} onClose={() => setCapture(false)} />}
     </main>
   )
 }

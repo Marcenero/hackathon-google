@@ -5,3 +5,5 @@ pydantic>=2.10,<3
 google-genai>=1.0.0,<3
 httpx>=0.28.1,<1
 python-dotenv>=1.0,<2
+Pillow>=13,<14
+pillow-heif>=1.9,<2

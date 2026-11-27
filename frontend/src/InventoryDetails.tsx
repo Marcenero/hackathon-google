@@ -2,7 +2,6 @@ import type { CSSProperties } from 'react'
 import { X, Zap } from 'lucide-react'
 import { ACTION_FLAGS, DEFECT_FLAGS, NETWORK_FLAGS, healthLevel, riskLevel, treeName } from './data/inventory'
 import type { InventoryTree } from './data/inventory'
-import type { TreeOccurrence } from './types/tree'
 import { Overlay } from './ReportDetails'
 
 const number = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 2 })
@@ -22,8 +21,8 @@ function Meter({ title, value, caption, color }: { title: string; value: number;
   )
 }
 
-export default function InventoryDetails({ tree, assessment, onAssessment, onClose }: {
-  tree: InventoryTree; assessment?: TreeOccurrence; onAssessment: (id: string) => void; onClose: () => void
+export default function InventoryDetails({ tree, onClose }: {
+  tree: InventoryTree; onClose: () => void
 }) {
   const risk = riskLevel(tree.rk)
   const health = healthLevel(tree.hl)
@@ -47,11 +46,6 @@ export default function InventoryDetails({ tree, assessment, onAssessment, onClo
           <Meter title="Saúde histórica" value={tree.hl} color={health.color} caption={tree.st || 'Sem registro'} />
         </div>
         <p className="capture-note">Os índices se referem ao inventário. A condição atual da árvore exige nova avaliação.</p>
-        {assessment && <section className="detail-section">
-          <h3>Triagem do Gemini vinculada</h3>
-          <p>{assessment.score}/100 · {riskLevel(assessment.score).label}</p>
-          <button type="button" className="text-button" onClick={() => onAssessment(assessment.id)}>Abrir relato e evidências</button>
-        </section>}
         {network.length > 0 && <p className="inventory-network"><Zap size={16} aria-hidden="true" /> Rede elétrica registrada · {network.join(', ')}</p>}
         <dl className="inventory-specs">
           <div><dt>Inspeção registrada</dt><dd>{tree.dt || 'Sem data'}</dd></div>
